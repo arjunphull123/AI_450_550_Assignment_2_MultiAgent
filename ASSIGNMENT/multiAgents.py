@@ -162,6 +162,11 @@ class MinimaxAgent(MultiAgentSearchAgent):
         return self.maxValue(gameState, 0)[1]
 
     def minimax(self, gameState, agentIndex, depth):
+        """
+        A recursive minimax algorithm. If the agent is Pacman, returns the maximum
+        minimax score and associated action. If the agent is a ghost, returns the 
+        score of the minimum scored action.
+        """
         # check for terminal state or depth
         if gameState.isWin() or gameState.isLose() or depth == self.depth:
             return self.evaluationFunction(gameState)
@@ -172,6 +177,9 @@ class MinimaxAgent(MultiAgentSearchAgent):
             return self.minValue(gameState, agentIndex, depth)
         
     def maxValue(self, gameState, depth):
+        """
+        Returns the maximum score and associated action among Pacman's legal actions.
+        """
         v = float('-inf')  # initialize v as negative infinity
 
         for action in gameState.getLegalActions(0):
@@ -186,6 +194,9 @@ class MinimaxAgent(MultiAgentSearchAgent):
         return v, best_action
     
     def minValue(self, gameState, agentIndex, depth):
+        """
+        Returns the score of the minimum scored action among the agent (ghost)'s legal actions.
+        """
         v = float('inf')  # initialize v as infinity
 
         for action in gameState.getLegalActions(agentIndex):
@@ -209,11 +220,14 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         """
 
         "*** YOUR CODE HERE ***"
-        alpha = float('-inf')
-        beta = float('inf')
+        alpha = float('-inf')  # initialize alpha
+        beta = float('inf')  # initialize beta
         return self.maxValue(gameState, 0, alpha, beta)[1]
 
     def minimax(self, gameState, agentIndex, depth, alpha, beta):
+        """
+        Recursive minimax implementation with alpha-beta pruning.
+        """
         # check for terminal state or depth
         if gameState.isWin() or gameState.isLose() or depth == self.depth:
             return self.evaluationFunction(gameState)
@@ -224,6 +238,10 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             return self.minValue(gameState, agentIndex, depth, alpha, beta)
         
     def maxValue(self, gameState, depth, alpha, beta):
+        """
+        Returns the maximum score and associated action among Pacman's legal actions.
+        If the value is greater than beta, returns that value.
+        """
         v = float('-inf')  # initialize v as negative infinity
 
         for action in gameState.getLegalActions(0):
@@ -235,12 +253,16 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
             if v_new > v:
                 v = v_new
                 best_action = action
-            if v > beta:
+            if v > beta:  # test against beta
                 return v, best_action
-            alpha = max(alpha, v)
+            alpha = max(alpha, v)  # prune alpha
         return v, best_action
     
     def minValue(self, gameState, agentIndex, depth, alpha, beta):
+        """
+        Returns the minimum score among the agent's legal actions.
+        If the value is less than alpha, returns that value.
+        """
         v = float('inf')  # initialize v as infinity
 
         for action in gameState.getLegalActions(agentIndex):
@@ -251,9 +273,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
                 v = min(v, self.minimax(successor, 0, depth + 1, alpha, beta))
             else:
                 v = min(v, self.minimax(successor, agentIndex + 1, depth, alpha, beta))
-            if v < alpha:
+            if v < alpha:  # test against alpha
                 return v
-            beta = min(v, beta)
+            beta = min(v, beta)  # prune beta
         return v
 
 
@@ -271,21 +293,115 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         """
 
         "*** YOUR CODE HERE ***"
+        return self.maxValue(gameState, 0)[1]  # get pacman's code
 
-        util.raiseNotDefined()
+    def expectimax(self, gameState, agentIndex, depth):
+        """
+        Recursive expectimax implementation. Returns the max scored action for
+        Pacman or the expected value of the score of the ghost's action.
+        """
+        # check for terminal state or depth
+        if gameState.isWin() or gameState.isLose() or depth == self.depth:
+            return self.evaluationFunction(gameState)
+        
+        if agentIndex == 0:  # Pacman: max
+            return self.maxValue(gameState, depth)[0]
+        else:  # Ghost: min
+            return self.expectedValue(gameState, agentIndex, depth)
+        
+    def maxValue(self, gameState, depth):
+        """
+        Returns the maximum score and associated action among Pacman's legal actions.
+        """
+        v = float('-inf')  # initialize v as negative infinity
 
+        for action in gameState.getLegalActions(0):
+            # get the successor state
+            successor = gameState.generateSuccessor(0, action)
+            # v becomes the max of v and the expectimax function called on the successor
+            # save the best action!
+            v_new = self.expectimax(successor, 1, depth)
+            if v_new > v:
+                v = v_new
+                best_action = action
+        return v, best_action
+    
+    def expectedValue(self, gameState, agentIndex, depth):
+        """
+        Returns the expected value of the score of the ghost's action.
+        """
+        expected = 0  # initialize storage for expected score
+
+        if not gameState.getLegalActions():  # leaf, so return eval function
+            return self.evaluationFunction(gameState)
+
+        # assume that the ghost chooses an action at random from uniform
+        prob = 1 / len(gameState.getLegalActions(agentIndex))
+
+        for action in gameState.getLegalActions(agentIndex):
+            # get the successor state
+            successor = gameState.generateSuccessor(agentIndex, action)
+
+            # get the score of that successor using expectimax
+            if agentIndex + 1 == gameState.getNumAgents():
+                score = self.expectimax(successor, 0, depth + 1)
+            else:
+                score = self.expectimax(successor, agentIndex + 1, depth)
+
+            # increment the expected value:
+            expected += prob * score
+        return expected
 
 def betterEvaluationFunction(currentGameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
 
-    DESCRIPTION: <write something here so we know what you did>
+    DESCRIPTION:
+    Increments the current score by the reciprocal of the distance to the
+    closest food item and 10 * the reciprocal of the total distance to the
+    ghost. If the ghosts are scared, the total distance to the ghosts is 
+    negated.
     """
 
     "*** YOUR CODE HERE ***"
+    # considerations:
+    # base motivation: get to the nearest pellet
+    # if ghosts are scared, prioritize actions closer to ghost
+    # if ghosts are not scared, prioritize actions away from ghosts
 
-    util.raiseNotDefined()
+    ###
+    # Useful information you can extract from a GameState (pacman.py)
+    newPos = currentGameState.getPacmanPosition()
+    newFood = currentGameState.getFood()
+    newGhostStates = currentGameState.getGhostStates()
+    newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+
+    "*** YOUR CODE HERE ***"
+    # get distances to each food item
+    foodLocations = newFood.asList()
+    if len(foodLocations) > 0:
+        distToClosestFood = min([util.manhattanDistance(newPos, food) for food in foodLocations])
+    else:
+        distToClosestFood = 1  # to avoid dividing by zero
+
+    # get total distance to each ghost
+    distToGhosts = 0
+    for state in newGhostStates:
+        distToGhosts += util.manhattanDistance(state.getPosition(), newPos)
+
+    if distToGhosts == 0:
+        distToGhosts += 1  # to avoid dividing by zero
+
+    # reverse incentive if ghosts are scared:
+    if newScaredTimes[0] > 0:
+        distToGhosts *= -1
+
+    # increment base score by the reciprocal of the distance to the closest food
+    # this prioritizes successors that get closer to food
+    # also decrement base score by 10 / distance to ghosts
+    # this prioritizes moves that get away from ghosts! or moves that approach scared ghosts
+    return currentGameState.getScore() + (1 / distToClosestFood) - (10 / distToGhosts)
 
 
 # Abbreviation
